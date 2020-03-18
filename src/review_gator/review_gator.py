@@ -361,7 +361,8 @@ def get_mp_title(mp):
 
 def get_candidate_mps(branch):
     try:
-        mps = branch.getMergeProposals(status=['Needs review','Work in progress'])
+        mps = branch.getMergeProposals(status='Needs review')
+        mps.extend(branch.getMergeProposals(status='Work in progress'))
     except AttributeError:
         mps = branch.landing_candidates
     return mps
@@ -444,7 +445,13 @@ def get_branches(sources, lp_credentials_store=None):
     for source, data in sources['branches'].items():
         print(source, data)
         b = lp.branches.getByUrl(url=source)
-        repo = LaunchpadRepo(b, b.web_link, b.display_name)
+        try:
+            repo = LaunchpadRepo(b, b.web_link, b.display_name)
+        except AttributeError:
+            print("Error: could not find repo for {}. Skipping".format(
+                source
+            ))
+            continue
         get_mps(repo, b)
         if repo.pull_request_count > 0:
             repos.append(repo)
@@ -471,7 +478,13 @@ def get_lp_repos(sources, output_directory=None, lp_credentials_store=None):
     for source, data in sources['repos'].items():
         print(source, data)
         b = lp.git_repositories.getByPath(path=source.replace('lp:', ''))
-        repo = LaunchpadRepo(b, b.web_link, b.display_name)
+        try:
+            repo = LaunchpadRepo(b, b.web_link, b.display_name)
+        except AttributeError:
+            print("Error: could not find repo for {}. Skipping".format(
+                source
+            ))
+            continue
         repo.tox = data.get('tox', False)
         get_mps(repo, b, output_directory)
         if repo.pull_request_count > 0:
