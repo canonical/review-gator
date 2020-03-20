@@ -48,12 +48,11 @@ lp-git:
         LAUNCHPAD-GIT-REPO-PATH:
             review-count: 2
 ```
-NOTE: as of v. 0.2, `owners` and all options underneath are experimental 
-with no guarantee of working. If you'd like to improve this work, we'll happily
-take PRs!
 
+Note: The code for the owners stanza is immature and requires more testing and
+development. 
 
-Extras
+Testing with Tox
 ------------
 
 Review Gator has the ability to run tox on all your Python based codelines.
@@ -68,14 +67,13 @@ github:
                 tox: true
 ```
 
-To use this, tox must be installed in the environment. 
+Tox is run in parallel using `--tox-jobs`. By default, Review Gator will parallelize 
+as many jobs as possible. If you'd like to limit parellization, pass an into to `--tox-jobs` 
+to set the max number of jobs
 
-Furthermore, to use all the launchpad capabilities, launchpadlib must be installed.
+TODO
+-----
 
-If you have an existing install, and want to add the extras, run
-
-`pip install .['extras']`
-
-If you are starting from scratch, and want full capabilities, run
-
-`pip install .['full']`
+* Test `owners` stanza support to identify and document issues, and 
+  complete `owners` support
+* Add unit testing.
