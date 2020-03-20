@@ -7,15 +7,20 @@ try: # for pip >= 10
     from pip._internal.req import parse_requirements
 except ImportError: # for pip <= 9.0.3
     from pip.req import parse_requirements
+from copy import deepcopy
 
 reqs_path = os.path.join(os.path.dirname(__file__), 'src/requirements.txt')
+extra_path = os.path.join(os.path.dirname(__file__), 'src/requirements-extra.txt')
 
 # parse_requirements() returns generator of pip.req.InstallRequirement objects
 install_reqs = parse_requirements(reqs_path, session='hack')
+extras_req = parse_requirements(extra_path, session='hack')
 
 # reqs is a list of requirement
 # e.g. ['django==1.5.1', 'mezzanine==1.4.6']
 reqs = [str(ir.req) for ir in install_reqs]
+extras = [str(ir.req) for ir in extras_req]
+full = reqs + extras
 
 setup(
     name='review-gator',
@@ -35,5 +40,9 @@ setup(
             'review-gator = '
             'review_gator.review_gator:main',
         ],
+    },
+    extras_require={
+        "extras": extras,
+        "full": full
     },
 )
