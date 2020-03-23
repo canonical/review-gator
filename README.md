@@ -52,6 +52,29 @@ lp-git:
 Note: The code for the owners stanza is immature and requires more testing and
 development. 
 
+### Configuration Explanation and Hierarchy
+
+#### Hosting & Repository Type type:
+    
+* `launchpad`: Launchpad hosted bazaar repositories
+* `github`: Github hosted git repositories
+* `lp-git`: Launchpad hosted git repositories
+
+#### Owners or Repos:
+
+* `owners`: Checks for all MPs under an owners specfied below.
+* `repos`: Check for MPs for listed repos
+
+#### User or Repo
+
+* `$LAUNCHPAD-USERNAME`: User to search for for MPs
+* `$REPO-NAME`: Repository name for searching for MPs
+
+#### Specific Configurations
+* `owners.$USERNAME.max-age`: Int. Max age of the MP to show in search results
+* `repos.$REPO-NAME.review-count`: Int. Number of reviews to show in the search results
+* `repos.$REPO-NAME.tox`: Boolean. Enable tox for a specific repository
+
 Testing with Tox
 ------------
 
