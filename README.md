@@ -72,7 +72,7 @@ development.
 
 #### Specific Configurations
 * `owners.$USERNAME.max-age`: Int. Max age of the MP to show in search results
-* `repos.$REPO-NAME.review-count`: Int. Number of reviews to show in the search results
+* `repos.$REPO-NAME.review-count`: Int. Number of reviewer boxes to display on an MP.
 * `repos.$REPO-NAME.tox`: Boolean. Enable tox for a specific repository
 
 Testing with Tox
