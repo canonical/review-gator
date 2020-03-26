@@ -361,7 +361,8 @@ def get_mp_title(mp):
 
 def get_candidate_mps(branch):
     try:
-        mps = branch.getMergeProposals(status=['Needs review','Work in progress'])
+        mps = branch.getMergeProposals(status='Needs review')
+        mps.extend(branch.getMergeProposals(status='Work in progress'))
     except AttributeError:
         mps = branch.landing_candidates
     return mps
@@ -444,7 +445,13 @@ def get_branches(sources, lp_credentials_store=None):
     for source, data in sources['branches'].items():
         print(source, data)
         b = lp.branches.getByUrl(url=source)
-        repo = LaunchpadRepo(b, b.web_link, b.display_name)
+        try:
+            repo = LaunchpadRepo(b, b.web_link, b.display_name)
+        except AttributeError:
+            print("Error: could not find repo for {}. Skipping".format(
+                source
+            ))
+            continue
         get_mps(repo, b)
         if repo.pull_request_count > 0:
             repos.append(repo)
@@ -471,7 +478,13 @@ def get_lp_repos(sources, output_directory=None, lp_credentials_store=None):
     for source, data in sources['repos'].items():
         print(source, data)
         b = lp.git_repositories.getByPath(path=source.replace('lp:', ''))
-        repo = LaunchpadRepo(b, b.web_link, b.display_name)
+        try:
+            repo = LaunchpadRepo(b, b.web_link, b.display_name)
+        except AttributeError:
+            print("Error: could not find repo for {}. Skipping".format(
+                source
+            ))
+            continue
         repo.tox = data.get('tox', False)
         get_mps(repo, b, output_directory)
         if repo.pull_request_count > 0:
@@ -507,7 +520,7 @@ def get_sources(source):
 
 
 def aggregate_reviews(sources, output_directory, github_password, github_token,
-                      github_username, tox, lp_credentials_store):
+                      github_username, tox, lp_credentials_store, tox_jobs):
     try:
         repos = []
         if 'lp-git' in sources:
@@ -532,7 +545,7 @@ def aggregate_reviews(sources, output_directory, github_password, github_token,
             # For all pull requests requiring a tox run set the initial state
             # as running, then render the report as normal.
             for tox_mp in tox_mps:
-                parallel_tox = Parallel(n_jobs=-1)(
+                parallel_tox = Parallel(n_jobs=tox_jobs)(
                     delayed(tox_runner.prep_tox_state)(
                         output_directory,
                         tox_mp.web_link.split('/')[-1])
@@ -545,7 +558,7 @@ def aggregate_reviews(sources, output_directory, github_password, github_token,
         if tox:
             # Once report is rendered with initial state then we can start
             # running the tox tests and update state after each run
-            parallel_tox = Parallel(n_jobs=-1)(
+            parallel_tox = Parallel(n_jobs=tox_jobs)(
                 delayed(tox_runner.run_tox)(
                     tox_mp.source_git_repository.display_name,
                     _format_git_branch_name(tox_mp.source_git_path),
@@ -610,9 +623,12 @@ def aggregate_reviews(sources, output_directory, github_password, github_token,
               required=False,
               help="An optional path to an already configured launchpad "
                    "credentials store.", default=None)
+@click.option('--tox-jobs', type=int, required=False, default=-1,
+              help="Number of parallelized tox jobs. Default is -1, running "
+                   "as many jobs as the processor allows. ")
 def main(config_skeleton, config, output_directory,
          github_username, github_password, github_token, poll,
-         tox, poll_interval, lp_credentials_store):
+         tox, poll_interval, lp_credentials_store, tox_jobs):
     """Start here."""
     global NOW
     if config_skeleton:
@@ -627,7 +643,8 @@ def main(config_skeleton, config, output_directory,
 
     sources = get_sources(config)
     aggregate_reviews(sources, output_directory, github_password,
-                      github_token, github_username, tox, lp_credentials_store)
+                      github_token, github_username, tox,
+                      lp_credentials_store, tox_jobs)
 
     if poll:
         # We do use time.sleep which is blocking so it is best to 'nice'

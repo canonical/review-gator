@@ -9,3 +9,5 @@ PyGithub
 lpshipit
 joblib
 GitPython
+tox
+launchpadlib
