@@ -74,7 +74,7 @@
                     </td>
                     {% if tox %}
                         <td>
-                            {% if repo.tox %}
+                            {% if pull_request.state.lower() == 'needs review' and repo.tox %}
                                 <a href="tox-{{ pull_request.id }}.output.txt" target="_blank">
                                     <img src="{{ pull_request.id }}.svg" title="Tox test state" height="40px" />
                                 </a>
