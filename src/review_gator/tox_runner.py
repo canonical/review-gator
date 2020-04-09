@@ -36,7 +36,7 @@ def run_tox(source_repo, source_branch, output_directory=None, mp_id=None,
         tox_return_code = lpmptox_runtox(
             source_repo,
             source_branch,
-            tox_command='tox --recreate --parallel auto'
+            tox_command='tox --recreate --parallel auto -q'
             if parallel_tox else 'tox --recreate',
             output_filepath=tox_output)
     except git.exc.GitCommandError as git_exc:
