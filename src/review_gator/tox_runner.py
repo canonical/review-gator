@@ -20,7 +20,8 @@ def prep_tox_state(output_directory=None, mp_id=None):
     shutil.copy(tox_output_dummy, tox_output)
 
 
-def run_tox(source_repo, source_branch, output_directory=None, mp_id=None):
+def run_tox(source_repo, source_branch, output_directory=None, mp_id=None,
+            parallel_tox=True):
     abs_vendor_path = os.path.join(os.path.dirname(
         os.path.realpath(__file__)), "vendor")
     tox_state = os.path.join(output_directory, "{}.svg".format(mp_id))
@@ -32,7 +33,12 @@ def run_tox(source_repo, source_branch, output_directory=None, mp_id=None):
     shutil.copy(clock_svg, tox_state)
 
     try:
-        tox_return_code = lpmptox_runtox(source_repo, source_branch, tox_command='tox --recreate --parallel auto | tee {}'.format(tox_output))
+        tox_return_code = lpmptox_runtox(
+            source_repo,
+            source_branch,
+            tox_command='tox --recreate --parallel auto'
+            if parallel_tox else 'tox --recreate',
+            output_filepath=tox_output)
     except git.exc.GitCommandError as git_exc:
         # If there was a git exception it should not exit as run_tox is
         # called as a parallel set of jobs and one job failing should not

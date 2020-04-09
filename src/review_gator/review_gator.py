@@ -587,7 +587,8 @@ def aggregate_reviews(sources, output_directory, github_password, github_token,
                     tox_mp.source_git_repository.display_name,
                     _format_git_branch_name(tox_mp.source_git_path),
                     output_directory,
-                    tox_mp.web_link.split('/')[-1])
+                    tox_mp.web_link.split('/')[-1],
+                    parallel_tox=False)
 
             # Run all remaining tox tests that can be run in parallel
             print("**** Running remaining tox tests in parallel... ")
