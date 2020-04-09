@@ -19,3 +19,5 @@ lp-git:
     repos:
         LAUNCHPAD-GIT-REPO-PATH:
             review-count: 2
+            tox: true
+            parallel-tox: false

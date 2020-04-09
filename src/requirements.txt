@@ -6,7 +6,7 @@ pytz
 PyYAML
 python-jose
 PyGithub
-lpshipit
+lpshipit>=0.4
 joblib
 GitPython
 tox

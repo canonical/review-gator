@@ -41,6 +41,7 @@ class Repo(object):
         self.name = name
         self.pull_requests = []
         self.pull_requests_requiring_tox = []
+        self.parallel_tox = True
         self.tox = False
 
     def __repr__(self):
@@ -210,6 +211,8 @@ def get_all_repos(gh, sources):
             repo = gh.get_repo('{}/{}'.format(org.replace(' ', ''), name))
             review_count = sources[org][name]['review-count']
             gr = GithubRepo(repo, repo.html_url, repo.ssh_url)
+            gr.tox = sources[org][name].get('tox', False)
+            gr.parallel_tox = sources[org][name].get('parallel-tox', True)
             get_prs(gr, repo, review_count)
             if gr.pull_request_count > 0:
                 repos.append(gr)
@@ -452,6 +455,8 @@ def get_branches(sources, lp_credentials_store=None):
                 source
             ))
             continue
+        repo.tox = data.get('tox', False)
+        repo.parallel_tox = data.get('parallel-tox', True)
         get_mps(repo, b)
         if repo.pull_request_count > 0:
             repos.append(repo)
@@ -486,6 +491,7 @@ def get_lp_repos(sources, output_directory=None, lp_credentials_store=None):
             ))
             continue
         repo.tox = data.get('tox', False)
+        repo.parallel_tox = data.get('parallel-tox', True)
         get_mps(repo, b, output_directory)
         if repo.pull_request_count > 0:
             repos.append(repo)
@@ -536,35 +542,63 @@ def aggregate_reviews(sources, output_directory, github_password, github_token,
                                    github_username, github_password, github_token))
         # Should we be running tox on any pull requests?
         if tox:
-            tox_mps = []
             # Are there any repos with any pull requests requiring a tox run?
-            for repo in repos:
-                if getattr(repo, 'pull_request_requiring_tox_count', 0) > 0:
-                    tox_mps.extend(repo.pull_requests_requiring_tox)
+            tox_repos = [repo for repo in repos if getattr(repo, 'pull_request_requiring_tox_count', 0) > 0]
+            tox_mps = []
+
+            for tox_repo in tox_repos:
+                tox_mps.extend(tox_repo.pull_requests_requiring_tox)
 
             # For all pull requests requiring a tox run set the initial state
             # as running, then render the report as normal.
-            for tox_mp in tox_mps:
-                parallel_tox = Parallel(n_jobs=tox_jobs)(
-                    delayed(tox_runner.prep_tox_state)(
-                        output_directory,
-                        tox_mp.web_link.split('/')[-1])
-                    for tox_mp in tox_mps
-                )
+            Parallel(n_jobs=tox_jobs)(
+                delayed(tox_runner.prep_tox_state)(
+                    output_directory,
+                    tox_mp.web_link.split('/')[-1])
+                for tox_mp in tox_mps
+            )
 
         # Render the report
         render(repos, output_directory, tox)
 
         if tox:
+            tox_repos_to_run_in_parallel = [tox_repo for tox_repo in tox_repos if tox_repo.parallel_tox]
+            tox_repos_to_run_without_parallelization = [tox_repo for tox_repo in tox_repos if not tox_repo.parallel_tox]
+
+            tox_mps_to_run_in_parallel = []
+            for tox_repo_to_run_in_parallel in tox_repos_to_run_in_parallel:
+                tox_mps_to_run_in_parallel.extend(tox_repo_to_run_in_parallel.pull_requests_requiring_tox)
+
+            tox_mps_to_run_without_parallelization = []
+            for tox_repo_to_run_without_parallelization in tox_repos_to_run_without_parallelization:
+                tox_mps_to_run_without_parallelization.extend(tox_repo_to_run_without_parallelization.pull_requests_requiring_tox)
+
             # Once report is rendered with initial state then we can start
             # running the tox tests and update state after each run
-            parallel_tox = Parallel(n_jobs=tox_jobs)(
+
+            # Run tox without parallelization for all tox mps that have
+            # parallel-tox == False. This could be due to waiting to avoid
+            # race conditions when running tests in parallel. As is the case
+            # for projects that use jenkins-job-builder
+            print("**** Running tox tests without parallelization. "
+                  "Repos with `parallel-tox: false` set... ")
+            for tox_mp in tox_mps_to_run_without_parallelization:
+                tox_runner.run_tox(
+                    tox_mp.source_git_repository.display_name,
+                    _format_git_branch_name(tox_mp.source_git_path),
+                    output_directory,
+                    tox_mp.web_link.split('/')[-1],
+                    parallel_tox=False)
+
+            # Run all remaining tox tests that can be run in parallel
+            print("**** Running remaining tox tests in parallel... ")
+            Parallel(n_jobs=tox_jobs)(
                 delayed(tox_runner.run_tox)(
                     tox_mp.source_git_repository.display_name,
                     _format_git_branch_name(tox_mp.source_git_path),
                     output_directory,
                     tox_mp.web_link.split('/')[-1])
-                for tox_mp in tox_mps
+                for tox_mp in tox_mps_to_run_in_parallel
             )
 
         last_poll = format_datetime(pytz.utc.localize(datetime.datetime.utcnow()))
