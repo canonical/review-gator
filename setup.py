@@ -3,19 +3,30 @@ from setuptools import find_packages, setup
 from glob import glob
 from os.path import basename
 from os.path import splitext
-try: # for pip >= 10
+
+from pip import __version__ as pip_version
+major_version = int(pip_version.split('.')[0])
+if major_version >= 20:
+    from pip._internal.network.session import PipSession
     from pip._internal.req import parse_requirements
-except ImportError: # for pip <= 9.0.3
+    attr = 'requirement'
+elif 10 <= major_version < 20:
+    from pip._internal.download import PipSession
+    from pip._internal.req import parse_requirements
+    attr = 'req'
+else:
+    from pip.download import PipSession
     from pip.req import parse_requirements
+    attr = 'req'
 
 reqs_path = os.path.join(os.path.dirname(__file__), 'src/requirements.txt')
 
 # parse_requirements() returns generator of pip.req.InstallRequirement objects
-install_reqs = parse_requirements(reqs_path, session='hack')
+install_reqs = parse_requirements(reqs_path, session=PipSession())
 
 # reqs is a list of requirement
 # e.g. ['django==1.5.1', 'mezzanine==1.4.6']
-reqs = [str(ir.req) for ir in install_reqs]
+reqs = [str(getattr(ir, attr)) for ir in install_reqs]
 
 setup(
     name='review-gator',
