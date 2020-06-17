@@ -47,6 +47,8 @@ lp-git:
     repos:
         LAUNCHPAD-GIT-REPO-PATH:
             review-count: 2
+            parallel-tox: false
+            environment: 18.04
 ```
 
 Note: The code for the owners stanza is immature and requires more testing and
@@ -74,6 +76,8 @@ development.
 * `owners.$USERNAME.max-age`: Int. Max age of the MP to show in search results
 * `repos.$REPO-NAME.review-count`: Int. Number of reviewer boxes to display on an MP.
 * `repos.$REPO-NAME.tox`: Boolean. Enable tox for a specific repository
+* `repos.$REPO-NAME.parallel-tox`: Boolean. Run tox in parallel with other repos. Tox environments are also run in parallel.
+* `repos.$REPO-NAME.environment`: String. If specified, use this ubuntu release in a lxc container (e.g. 16.04, 18.04, etc.)
 
 Testing with Tox
 ------------
