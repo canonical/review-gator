@@ -21,3 +21,4 @@ lp-git:
             review-count: 2
             tox: true
             parallel-tox: false
+            environment: 18.04

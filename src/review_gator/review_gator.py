@@ -60,9 +60,9 @@ class Repo(object):
         '''Add a pull request to this repository.'''
         self.pull_requests.append(pull_request)
 
-    def add_requiring_tox(self, pull_request_requiring_tox):
+    def add_requiring_tox(self, pull_request_requiring_tox, environment):
         '''Add a pull request that requires tox to this repository.'''
-        self.pull_requests_requiring_tox.append(pull_request_requiring_tox)
+        self.pull_requests_requiring_tox.append((pull_request_requiring_tox, environment))
 
 
 class GithubRepo(Repo):
@@ -213,6 +213,7 @@ def get_all_repos(gh, sources):
             gr = GithubRepo(repo, repo.html_url, repo.ssh_url)
             gr.tox = sources[org][name].get('tox', False)
             gr.parallel_tox = sources[org][name].get('parallel-tox', True)
+            gr.environment = sources[org][name].get('environment', None)
             get_prs(gr, repo, review_count)
             if gr.pull_request_count > 0:
                 repos.append(gr)
@@ -386,7 +387,7 @@ def get_mps(repo, branch, output_directory=None):
         mp_latest_activity = None
 
         if repo.tox and pr.state == 'Needs review':
-            repo.add_requiring_tox(mp)
+            repo.add_requiring_tox(mp, repo.environment)
 
         # Find most recent activity on merge proposal
         for mp_comment in mp.all_comments:
@@ -457,6 +458,7 @@ def get_branches(sources, lp_credentials_store=None):
             continue
         repo.tox = data.get('tox', False)
         repo.parallel_tox = data.get('parallel-tox', True)
+        repo.environment = data.get('environment', None)
         get_mps(repo, b)
         if repo.pull_request_count > 0:
             repos.append(repo)
@@ -492,6 +494,7 @@ def get_lp_repos(sources, output_directory=None, lp_credentials_store=None):
             continue
         repo.tox = data.get('tox', False)
         repo.parallel_tox = data.get('parallel-tox', True)
+        repo.environment = data.get('environment', None)
         get_mps(repo, b, output_directory)
         if repo.pull_request_count > 0:
             repos.append(repo)
@@ -555,7 +558,7 @@ def aggregate_reviews(sources, output_directory, github_password, github_token,
                 delayed(tox_runner.prep_tox_state)(
                     output_directory,
                     tox_mp.web_link.split('/')[-1])
-                for tox_mp in tox_mps
+                for tox_mp, _environment in tox_mps
             )
 
         # Render the report
@@ -582,13 +585,14 @@ def aggregate_reviews(sources, output_directory, github_password, github_token,
             # for projects that use jenkins-job-builder
             print("**** Running tox tests without parallelization. "
                   "Repos with `parallel-tox: false` set... ")
-            for tox_mp in tox_mps_to_run_without_parallelization:
+            for tox_mp, environment in tox_mps_to_run_without_parallelization:
                 tox_runner.run_tox(
                     tox_mp.source_git_repository.display_name,
                     _format_git_branch_name(tox_mp.source_git_path),
                     output_directory,
                     tox_mp.web_link.split('/')[-1],
-                    parallel_tox=False)
+                    parallel_tox=False,
+                    environment=environment)
 
             # Run all remaining tox tests that can be run in parallel
             print("**** Running remaining tox tests in parallel... ")
@@ -597,8 +601,9 @@ def aggregate_reviews(sources, output_directory, github_password, github_token,
                     tox_mp.source_git_repository.display_name,
                     _format_git_branch_name(tox_mp.source_git_path),
                     output_directory,
-                    tox_mp.web_link.split('/')[-1])
-                for tox_mp in tox_mps_to_run_in_parallel
+                    tox_mp.web_link.split('/')[-1],
+                    environment=environment)
+                for tox_mp, environment in tox_mps_to_run_in_parallel
             )
 
         last_poll = format_datetime(pytz.utc.localize(datetime.datetime.utcnow()))
