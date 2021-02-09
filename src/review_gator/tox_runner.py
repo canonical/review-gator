@@ -37,7 +37,7 @@ def run_tox(source_repo, source_branch, output_directory=None, mp_id=None,
             source_repo,
             source_branch,
             tox_command='tox --recreate --parallel auto -q'
-            if parallel_tox and environment is None else 'tox --recreate',
+            if parallel_tox else 'tox --recreate',
             output_filepath=tox_output,
             environment=environment)
     except git.exc.GitCommandError as git_exc:
