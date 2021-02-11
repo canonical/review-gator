@@ -524,7 +524,7 @@ def get_repos(sources, github_username, github_password, github_token):
 
 def get_sources(source):
     '''Load the sources file.'''
-    data = yaml.load(source.read())
+    data = yaml.load(source.read(), Loader=yaml.SafeLoader)
     return data
 
 
