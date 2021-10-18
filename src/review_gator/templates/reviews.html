@@ -12,7 +12,12 @@
         .repo-state-toggle{
             margin: 1em 0;
         }
-        #generated-time{
+        #generated-time {
+            font-size: 80%;
+            margin-top: 1em;
+            text-align: center;
+        }
+        #autorefresh {
             font-size: 80%;
             margin-top: 1em;
             text-align: center;
@@ -94,7 +99,74 @@
 
     <div id="generated-time">Generated at {{ generation_time.strftime('%Y-%m-%d %H:%M:%S %Z') }}</div>
 
+    <div id="autorefresh">
+      <input type="checkbox" id="autorefreshCheckbox" name="autorefresh" />
+      <label for="autorefreshCheckbox">auto-refresh</label>
+      <input id="autorefreshDelayField" type="number" value="20" size="4"/>min
+    </div>
+
 <script type="text/javascript" charset="utf-8">
+    function configureAutorefresh() {
+
+        // First, get all the element we need from this page
+        const autorefreshCheckbox = document.getElementById('autorefreshCheckbox');
+        const autorefreshDelayField = document.getElementById('autorefreshDelayField');
+
+        // The refresh delay is in minutes and setTimeout takes milliseconds
+        const autorefreshDelay = autorefreshDelayField.value*60*1000;
+
+        // then define/declare the some basic things
+        let refreshTimeout;
+
+        // setRefresh creates a timeout with the given delay
+        // and reloads the page when expiring
+        const setRefresh = () => {
+            if (!autorefreshCheckbox.checked) {
+                return;
+            }
+
+            refreshTimeout = setTimeout(() => {
+                window.location.reload();
+            }, autorefreshDelay);
+            console.log(`Auto-refresh enabled, the page will be reloaded in ${autorefreshDelay}ms`)
+        };
+
+        // set the autorefresh according to what is already
+        // defined on the page
+        setRefresh();
+
+        // defines what happens if the user {un-]checks the checkbox
+        autorefreshCheckbox.addEventListener('change', () => {
+            // first we set the auto-refresh if the user checked the
+            // checkbox
+            setRefresh();
+
+            // if the user un-checked the checkbox, then cancel the
+            // current timeout
+            if (!autorefreshCheckbox.checked) {
+                clearTimeout(refreshTimeout);
+                console.log('Auto-refresh disabled')
+            }
+        });
+
+        // defines what happens if the user changes the interval
+        autorefreshDelayField.addEventListener('change', () => {
+            // if the checkbox in not checked, then there is nothing
+            // to do
+            if (!autorefreshCheckbox.checked) {
+                return
+            }
+
+            // otherwise, if auto-refresh is enabled, we
+            // need to reset the timeout with the new delay
+            clearTimeout(refreshTimeout);
+
+            setRefresh();
+
+            console.log('Auto-refresh delay changed')
+        });
+    }
+
     $(document).ready(function() {
         var repo_data_table = $('.repo').DataTable({
              paging: false,
@@ -136,6 +208,8 @@
             $.fn.dataTable.ext.search.pop();
             repo_data_table.draw();
         });
+
+        configureAutorefresh();
     } );
 
 </script>
