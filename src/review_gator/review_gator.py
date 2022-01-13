@@ -654,7 +654,10 @@ def aggregate_reviews(sources, output_directory, github_password, github_token,
               help='Keep aggregating reviews at a specified interval')
 @click.option('--tox', is_flag=True, default=False,
               help='If repo config "tox: true" run tox and show result '
-                   'as graphic')
+                   'as graphic.{}'.format(
+                        'If running as a strictly confined snap this will not work due to external processes being '
+                        'called during source repo cloning and during tox running.'
+                        if os.environ.get('SNAP', None) else ''))
 @click.option('--poll-interval', type=int, required=False, default=600,
               help="Interval, in seconds, between each version check "
                    "[default: 600 seconds]")
@@ -664,7 +667,10 @@ def aggregate_reviews(sources, output_directory, github_password, github_token,
                    "credentials store.", default=None)
 @click.option('--tox-jobs', type=int, required=False, default=-1,
               help="Number of parallelized tox jobs. Default is -1, running "
-                   "as many jobs as the processor allows. ")
+                   "as many jobs as the processor allows. {}".format(
+                        'If running as a strictly confined snap running tox will not work due to external '
+                        'processes being called during source repo cloning and during tox running.'
+                        if os.environ.get('SNAP', None) else ''))
 def main(config_skeleton, config, output_directory,
          github_username, github_password, github_token, poll,
          tox, poll_interval, lp_credentials_store, tox_jobs):
