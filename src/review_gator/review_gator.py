@@ -9,6 +9,9 @@ import time
 
 import click
 import github
+from github.GithubException import (
+    UnknownObjectException,
+    RateLimitExceededException)
 import humanize
 import pytz
 import yaml
@@ -26,6 +29,17 @@ from .reporters import REPORTER_CLASSES
 
 MAX_DESCRIPTION_LENGTH = 80
 NOW = pytz.utc.localize(datetime.datetime.utcnow())
+
+
+def print_warning(warning_msgs):
+    """
+    standard way to print a light scream
+    Tell me what to scream about, and if you want to say more
+    List[str]: warning_msgs List of strings of messages to display
+    """
+    print("**** WARNING ****")
+    for msg in warning_msgs:
+        print("** {} **".format(msg))
 
 
 class Repo(object):
@@ -208,7 +222,20 @@ def get_all_repos(gh, sources):
     repos = []
     for org in sources:
         for name, data in sources[org].items():
-            repo = gh.get_repo('{}/{}'.format(org.replace(' ', ''), name))
+            repo_name = '{}/{}'.format(org.replace(' ', ''), name)
+            try:
+                repo = gh.get_repo(repo_name)
+            except UnknownObjectException:
+                print_warning(
+                    ["{} WAS NOT FOUND".format(repo_name),
+                     "CHECK CREDENTIALS AND REPO NAME"]
+                )
+                continue
+            except RateLimitExceededException as rle:
+                print_warning(
+                    ["Rate Limit Exception!",
+                     str(rle)]
+                )
             review_count = sources[org][name]['review-count']
             gr = GithubRepo(repo, repo.html_url, repo.ssh_url)
             gr.tox = sources[org][name].get('tox', False)
@@ -452,9 +479,10 @@ def get_branches(sources, lp_credentials_store=None):
         try:
             repo = LaunchpadRepo(b, b.web_link, b.display_name)
         except AttributeError:
-            print("Error: could not find repo for {}. Skipping".format(
-                source
-            ))
+            print_warning(
+                ["COULD NOT FIND REPO : {}".format(source),
+                 "SKIPPING {}".format(source)]
+            )
             continue
         repo.tox = data.get('tox', False)
         repo.parallel_tox = data.get('parallel-tox', True)
@@ -488,9 +516,10 @@ def get_lp_repos(sources, output_directory=None, lp_credentials_store=None):
         try:
             repo = LaunchpadRepo(b, b.web_link, b.display_name)
         except AttributeError:
-            print("Error: could not find repo for {}. Skipping".format(
-                source
-            ))
+            print_warning(
+                ["COULD NOT FIND REPO : {}".format(source),
+                 "SKIPPING {}"].format(source)
+            )
             continue
         repo.tox = data.get('tox', False)
         repo.parallel_tox = data.get('parallel-tox', True)
@@ -509,13 +538,14 @@ def get_repos(sources, github_username, github_password, github_token):
         gh = github.Github(github_username,
                            github_password)
     else:
-        print("*** You have configured Github repositories but not supplied "
-              "any Github credentials ***")
-        print("You can either pass these values to review-gator or set "
-              "GITHUB_TOKEN or (GITHUB_USERNAME and GITHUB_PASSWORD) "
-              "environment variables.")
-        print("Rendering will proceed but will not include any of your "
-              "Github repositories.")
+        print_warning(
+               [("You have configured Github repositories but not supplied "
+                "any Github credentials"),
+                ("You can either pass these values to review-gator or set "
+                 "GITHUB_TOKEN or (GITHUB_USERNAME and GITHUB_PASSWORD) "
+                 "environment variables."),
+                ("Rendering will proceed but will not include any of your "
+                 "Github repositories.")])
         return []
 
     repos = get_all_repos(gh, sources['repos'])
@@ -609,11 +639,13 @@ def aggregate_reviews(sources, output_directory, github_password, github_token,
         last_poll = format_datetime(pytz.utc.localize(datetime.datetime.utcnow()))
         print("Last run @ {}".format(last_poll))
     except socket.timeout as se:
-        print("Socket.timeout error querying github/launchpad: %s. "
-              "We will retry. \n", str(se))
+        print_warning(
+            ("Socket.timeout error querying github/launchpad: %s. "
+              "We will retry. \n".format(str(se))))
     except TimeoutError as e:
-        print("TimeoutError error querying github/launchpad: %s. "
-              "We will retry. \n", str(e))
+        print_warning(
+            ("Socket.timeout error querying github/launchpad: %s. "
+              "We will retry. \n".format(str(e))))
 
 
 @click.command()
