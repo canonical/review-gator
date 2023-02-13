@@ -13,6 +13,7 @@ from github.GithubException import (
     UnknownObjectException,
     RateLimitExceededException)
 import humanize
+import lazr.restfulclient.errors
 import pytz
 import yaml
 
@@ -427,9 +428,13 @@ def get_mps(repo, branch, output_directory=None):
             comment = vote.comment
             result = 'EMPTY'
             review_date = vote.date_created
-            if comment is not None:
-                result = comment.vote
-                review_date = comment.date_created
+            try:
+                if comment is not None:
+                    result = comment.vote
+                    review_date = comment.date_created
+            except lazr.restfulclient.errors.NotFound as comment_not_found_exception:
+                print("Warning: MP ({}) could not find comment for vote from {} - "
+                      "comment was likely deleted.".format(mp.web_link, owner))
             review = LaunchpadReview(vote, vote.web_link, owner, result,
                                      review_date)
 
