@@ -144,7 +144,6 @@ class GithubPullRequest(PullRequest):
     '''A github pull request.'''
     def __init__(self, handle, url, title, owner, state, date, review_count,
                  latest_activity=None):
-        date = pytz.utc.localize(date)
         super(GithubPullRequest, self).__init__(
                 'github', handle, url, title, owner, state, date, review_count,
                 latest_activity=latest_activity)
@@ -183,8 +182,6 @@ class GithubReview(Review):
 
     '''A github pull request review.'''
     def __init__(self, handle, url, owner, state, date):
-        date = pytz.utc.localize(date)
-
         super(GithubReview, self).__init__(
             'github', handle, url, owner, state, date)
 
@@ -261,20 +258,18 @@ def get_prs(gr, repo, review_count):
         raw_reviews = p.get_reviews()
         raw_comments = p.get_comments()
         raw_issue_comments = p.get_issue_comments()
-        pr_latest_activity = pytz.utc.localize(p.created_at)
+        pr_latest_activity = p.created_at
 
         # Find most recent issue comment activity on pull request
         for raw_issue_comment in raw_issue_comments:
-            issue_comment_created_at = pytz.utc.localize(
-                raw_issue_comment.created_at)
+            issue_comment_created_at = raw_issue_comment.created_at
             if pr_latest_activity is None or (
                     issue_comment_created_at > pr_latest_activity):
                 pr_latest_activity = issue_comment_created_at
 
         # Find most recent comment activity on pull request
         for raw_comment in raw_comments:
-            comment_created_at = pytz.utc.localize(
-                raw_comment.created_at)
+            comment_created_at = raw_comment.created_at
             if pr_latest_activity is None or (
                     comment_created_at > pr_latest_activity):
                 pr_latest_activity = comment_created_at
@@ -286,7 +281,7 @@ def get_prs(gr, repo, review_count):
             review = GithubReview(raw_review, raw_review.html_url, owner,
                                   raw_review.state, raw_review.submitted_at)
             pr.add_review(review)
-            review_date = pytz.utc.localize(raw_review.submitted_at)
+            review_date = raw_review.submitted_at
             # Review might be more recent than a comment
             if pr_latest_activity is None or review_date > pr_latest_activity:
                 pr_latest_activity = review_date
