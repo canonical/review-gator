@@ -97,7 +97,7 @@ class PullRequest(object):
 
     Represents a github pull request or launchpad merge proposal.'''
     def __init__(self, pull_request_type, handle, url, title, owner, state,
-                 date, review_count, latest_activity=None):
+                 date, review_count, latest_activity=None, dedicated_tab_name=None):
         self.pull_request_type = pull_request_type
         self.handle = handle
         self.url = url
@@ -107,6 +107,7 @@ class PullRequest(object):
         self.latest_activity = latest_activity
         self.date = date
         self.review_count = review_count
+        self.tab_name = dedicated_tab_name
         self.reviews = []
 
     def __repr__(self):
@@ -143,10 +144,11 @@ class PullRequest(object):
 class GithubPullRequest(PullRequest):
     '''A github pull request.'''
     def __init__(self, handle, url, title, owner, state, date, review_count,
-                 latest_activity=None):
+                 latest_activity=None, dedicated_tab_name=None):
+        date = pytz.utc.localize(date)
         super(GithubPullRequest, self).__init__(
                 'github', handle, url, title, owner, state, date, review_count,
-                latest_activity=latest_activity)
+                latest_activity=latest_activity, dedicated_tab_name=dedicated_tab_name)
 
 
 class LaunchpadPullRequest(PullRequest):
@@ -182,6 +184,7 @@ class GithubReview(Review):
 
     '''A github pull request review.'''
     def __init__(self, handle, url, owner, state, date):
+        date = pytz.utc.localize(date)
         super(GithubReview, self).__init__(
             'github', handle, url, owner, state, date)
 
@@ -235,30 +238,31 @@ def get_all_repos(gh, sources):
                      str(rle)]
                 )
             review_count = sources[org][name]['review-count']
+            dedicated_tab_name = sources[org][name].get('tab-name', None)
             gr = GithubRepo(repo, repo.html_url, repo.ssh_url)
             gr.tox = sources[org][name].get('tox', False)
             gr.parallel_tox = sources[org][name].get('parallel-tox', True)
             gr.environment = sources[org][name].get('environment', None)
-            get_prs(gr, repo, review_count)
+            get_prs(gr, repo, review_count, dedicated_tab_name)
             if gr.pull_request_count > 0:
                 repos.append(gr)
             print(gr)
     return repos
 
 
-def get_prs(gr, repo, review_count):
+def get_prs(gr, repo, review_count, dedicated_tab_name=None):
     '''Return all pull request for the given repository.'''
     pull_requests = []
     pulls = repo.get_pulls()
     for p in pulls:
         pr = GithubPullRequest(p, p.html_url, p.title, p.user.login,
-                            p.state, p.created_at, review_count)
+                            p.state, p.created_at, review_count, dedicated_tab_name)
         gr.add(pr)
         pull_requests.append(pr)
         raw_reviews = p.get_reviews()
         raw_comments = p.get_comments()
         raw_issue_comments = p.get_issue_comments()
-        pr_latest_activity = p.created_at
+        pr_latest_activity = pytz.utc.localize(p.created_at)
 
         # Find most recent issue comment activity on pull request
         for raw_issue_comment in raw_issue_comments:
@@ -311,8 +315,10 @@ def get_repo_data(repos):
             'repo_name': repo.name,
             'tox': repo.tox,
             'repo_shortname': repo.name.split('/')[-1],
-            'pull_requests': get_pr_data(repo.pull_requests)
+            'pull_requests': get_pr_data(repo.pull_requests),
+            'tab_name': repo.tab_name,
         }
+    repo_data['dedicated_tabs'] = [repo.get('tab_name') for repo in repo_data.values() if repo.get('tab_name', None)]
     return repo_data
 
 
@@ -487,6 +493,7 @@ def get_branches(sources, lp_credentials_store=None):
         repo.tox = data.get('tox', False)
         repo.parallel_tox = data.get('parallel-tox', True)
         repo.environment = data.get('environment', None)
+        repo.tab_name = data.get('tab-name', None)
         get_mps(repo, b)
         if repo.pull_request_count > 0:
             repos.append(repo)
@@ -524,6 +531,7 @@ def get_lp_repos(sources, output_directory=None, lp_credentials_store=None):
         repo.tox = data.get('tox', False)
         repo.parallel_tox = data.get('parallel-tox', True)
         repo.environment = data.get('environment', None)
+        repo.tab_name = data.get('tab-name', None)
         get_mps(repo, b, output_directory)
         if repo.pull_request_count > 0:
             repos.append(repo)
