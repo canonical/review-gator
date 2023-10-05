@@ -29,8 +29,6 @@ from . import clicklib
 from .reporters import REPORTER_CLASSES
 
 MAX_DESCRIPTION_LENGTH = 80
-NOW = pytz.utc.localize(datetime.datetime.utcnow())
-
 
 def print_warning(warning_msgs):
     """
@@ -42,6 +40,20 @@ def print_warning(warning_msgs):
     for msg in warning_msgs:
         print("** {} **".format(msg))
 
+def localize_datetime(_datetime):
+    """
+    conditionally localize a datetime object if the datetime object is not
+    already localized
+    :param _datetime:
+    :return:
+    """
+    if _datetime.tzinfo is None:
+        return pytz.utc.localize(_datetime)
+    else:
+        return _datetime
+
+NOW = localize_datetime(datetime.datetime.utcnow())
+
 
 class Repo(object):
     '''Base class for a source code repository.
@@ -49,7 +61,7 @@ class Repo(object):
     These are the github repository or launchpad branch  that a pull request
     will target. A repo contain 0 or more pull requests.'''
 
-    def __init__(self, repo_type, handle, url, name):
+    def __init__(self, repo_type, handle, url, name, dedicated_tab_name=None):
         self.repo_type = repo_type
         self.handle = handle
         self.url = url
@@ -57,6 +69,7 @@ class Repo(object):
         self.pull_requests = []
         self.pull_requests_requiring_tox = []
         self.parallel_tox = True
+        self.tab_name = dedicated_tab_name
         self.tox = False
 
     def __repr__(self):
@@ -82,14 +95,14 @@ class Repo(object):
 
 class GithubRepo(Repo):
     '''A github repository.'''
-    def __init__(self, handle, url, name):
-        super(GithubRepo, self).__init__('github', handle, url, name)
+    def __init__(self, handle, url, name, dedicated_tab_name=None):
+        super(GithubRepo, self).__init__('github', handle, url, name, dedicated_tab_name=dedicated_tab_name)
 
 
 class LaunchpadRepo(Repo):
     '''A launchpad repository (aka branch).'''
-    def __init__(self, handle, url, name):
-        super(LaunchpadRepo, self).__init__('launchpad', handle, url, name)
+    def __init__(self, handle, url, name, dedicated_tab_name=None):
+        super(LaunchpadRepo, self).__init__('launchpad', handle, url, name, dedicated_tab_name=dedicated_tab_name)
 
 
 class PullRequest(object):
@@ -97,7 +110,7 @@ class PullRequest(object):
 
     Represents a github pull request or launchpad merge proposal.'''
     def __init__(self, pull_request_type, handle, url, title, owner, state,
-                 date, review_count, latest_activity=None, dedicated_tab_name=None):
+                 date, review_count, latest_activity=None):
         self.pull_request_type = pull_request_type
         self.handle = handle
         self.url = url
@@ -107,7 +120,6 @@ class PullRequest(object):
         self.latest_activity = latest_activity
         self.date = date
         self.review_count = review_count
-        self.tab_name = dedicated_tab_name
         self.reviews = []
 
     def __repr__(self):
@@ -144,15 +156,15 @@ class PullRequest(object):
 class GithubPullRequest(PullRequest):
     '''A github pull request.'''
     def __init__(self, handle, url, title, owner, state, date, review_count,
-                 latest_activity=None, dedicated_tab_name=None):
-        date = pytz.utc.localize(date)
+                 latest_activity=None):
+        date = localize_datetime(date)
         super(GithubPullRequest, self).__init__(
                 'github', handle, url, title, owner, state, date, review_count,
-                latest_activity=latest_activity, dedicated_tab_name=dedicated_tab_name)
+                latest_activity=latest_activity)
 
 
 class LaunchpadPullRequest(PullRequest):
-    '''A launchpad pull request (aka merte proposal).'''
+    '''A launchpad pull request (aka merge proposal).'''
     def __init__(self, handle, url, title, owner, state, date, review_count,
                  latest_activity=None):
         super(LaunchpadPullRequest, self).__init__(
@@ -184,7 +196,7 @@ class GithubReview(Review):
 
     '''A github pull request review.'''
     def __init__(self, handle, url, owner, state, date):
-        date = pytz.utc.localize(date)
+        date = localize_datetime(date)
 
         super(GithubReview, self).__init__(
             'github', handle, url, owner, state, date)
@@ -240,7 +252,7 @@ def get_all_repos(gh, sources):
                 )
             review_count = sources[org][name]['review-count']
             dedicated_tab_name = sources[org][name].get('tab-name', None)
-            gr = GithubRepo(repo, repo.html_url, repo.ssh_url)
+            gr = GithubRepo(repo, repo.html_url, repo.ssh_url, dedicated_tab_name=dedicated_tab_name)
             gr.tox = sources[org][name].get('tox', False)
             gr.parallel_tox = sources[org][name].get('parallel-tox', True)
             gr.environment = sources[org][name].get('environment', None)
@@ -263,11 +275,11 @@ def get_prs(gr, repo, review_count, dedicated_tab_name=None):
         raw_reviews = p.get_reviews()
         raw_comments = p.get_comments()
         raw_issue_comments = p.get_issue_comments()
-        pr_latest_activity = pytz.utc.localize(p.created_at)
+        pr_latest_activity = localize_datetime(p.created_at)
 
         # Find most recent issue comment activity on pull request
         for raw_issue_comment in raw_issue_comments:
-            issue_comment_created_at = pytz.utc.localize(
+            issue_comment_created_at = localize_datetime(
                 raw_issue_comment.created_at)
             if pr_latest_activity is None or (
                     issue_comment_created_at > pr_latest_activity):
@@ -275,7 +287,7 @@ def get_prs(gr, repo, review_count, dedicated_tab_name=None):
 
         # Find most recent comment activity on pull request
         for raw_comment in raw_comments:
-            comment_created_at = pytz.utc.localize(
+            comment_created_at = localize_datetime(
                 raw_comment.created_at)
             if pr_latest_activity is None or (
                     comment_created_at > pr_latest_activity):
@@ -288,7 +300,7 @@ def get_prs(gr, repo, review_count, dedicated_tab_name=None):
             review = GithubReview(raw_review, raw_review.html_url, owner,
                                   raw_review.state, raw_review.submitted_at)
             pr.add_review(review)
-            review_date = pytz.utc.localize(raw_review.submitted_at)
+            review_date = localize_datetime(raw_review.submitted_at)
             # Review might be more recent than a comment
             if pr_latest_activity is None or review_date > pr_latest_activity:
                 pr_latest_activity = review_date
@@ -647,7 +659,7 @@ def aggregate_reviews(sources, output_directory, github_password, github_token,
                 for tox_mp, environment in tox_mps_to_run_in_parallel
             )
 
-        last_poll = format_datetime(pytz.utc.localize(datetime.datetime.utcnow()))
+        last_poll = format_datetime(localize_datetime(datetime.datetime.utcnow()))
         print("Last run @ {}".format(last_poll))
     except socket.timeout as se:
         print_warning(
@@ -734,12 +746,12 @@ def main(config_skeleton, config, output_directory,
         os.nice(19)
         while True:
             next_poll = format_datetime(
-                    pytz.utc.localize(
+                    localize_datetime(
                             datetime.datetime.utcnow() +
                             datetime.timedelta(seconds=poll_interval)))
             print("Next run @ {}".format(next_poll))
             time.sleep(poll_interval)  # wait before checking again
-            NOW = pytz.utc.localize(datetime.datetime.utcnow())
+            NOW = localize_datetime(datetime.datetime.utcnow())
             aggregate_reviews(sources, output_directory, github_password,
                               github_token, github_username, tox,
                               lp_credentials_store)
