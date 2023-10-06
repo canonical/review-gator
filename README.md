@@ -98,6 +98,31 @@ Tox is run in parallel using `--tox-jobs`. By default, Review Gator will paralle
 as many jobs as possible. If you'd like to limit parellization, pass an into to `--tox-jobs` 
 to set the max number of jobs
 
+Dedicated tabs
+------------
+
+Review Gator has the ability to have a dedicated tab for special repos without being 
+included in the default view our review-gator.
+
+This is useful for repos that have a lot of review traffic and you want to have a 
+dedicated tab for them.
+
+This can be enabled on a per repo:
+
+```
+github:
+    repos:
+        CanonicalLtd:
+            review-gator:
+                review-count: 2
+                tox: true
+                tab-name: "Review Gator"
+```
+
+Tox is run in parallel using `--tox-jobs`. By default, Review Gator will parallelize 
+as many jobs as possible. If you'd like to limit parellization, pass an into to `--tox-jobs` 
+to set the max number of jobs
+
 TODO
 -----
 

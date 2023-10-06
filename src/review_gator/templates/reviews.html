@@ -10,7 +10,7 @@
             padding-right: 2em;
         }
         .repo-state-toggle{
-            margin: 1em 0;
+            margin: 1em 0 0.5em 0;
         }
         #generated-time {
             font-size: 80%;
@@ -21,6 +21,9 @@
             font-size: 80%;
             margin-top: 1em;
             text-align: center;
+        }
+        .dedicated-tabs-header {
+            display:inline;
         }
     </style>
     <link rel="stylesheet" type="text/css" href="vendor/datatables.min.css"/>
@@ -36,6 +39,16 @@
             <a href="#" id="workinprogress" class="btn btn-default">Work in progress</a>
             <a href="#" id="reset" class="btn btn-default">All</a>
         </div>
+
+        {%  if repos.dedicated_tabs %}
+            <h6 class="dedicated-tabs-header">Dedicated:</h6>
+            <div class="btn-group btn-group-xs repo-dedicated-tabs-toggle" role="group" >
+                    {% for dedicated_tab_name in repos.dedicated_tabs %}
+                        <a href="#" id="dedicated-{{ dedicated_tab_name|replace(" ", "-") }}-needsreview" class="btn btn-default dedicated-tabs-toggle">{{ dedicated_tab_name }} Needs Review</a>
+                        <a href="#" id="dedicated-{{ dedicated_tab_name|replace(" ", "-") }}-workinprogress" class="btn btn-default dedicated-tabs-toggle">{{ dedicated_tab_name }} Work in progress</a>
+                    {% endfor %}
+            </div>
+        {% endif %}
 
         <table class="repo table table-striped table-bordered table-hover">
         <thead>
@@ -55,7 +68,7 @@
         <tbody>
         {% for repo_name, repo in repos.items() %}
             {% for pull_request in repo.pull_requests %}
-                <tr data-state="{{ pull_request.state|lower }}">
+                <tr data-state="{{ pull_request.state|lower }}" data-dedicated-tab="{{ repo.tab_name }}">
                     <td data-order="{{ repo.repo_name }}" title="{{ repo.repo_name }}"><a href="{{ repo.repo_url }}">{{ repo.repo_shortname }}</a></td>
                     <td><a href="{{ pull_request.url }}">{{ pull_request.title }}</a></td>
                     <td>{{ pull_request.state }}</td>
@@ -172,12 +185,19 @@
              paging: false,
              order: [[ 4, "desc" ]]
         });
-        function show_row_with_states(states){
+        function show_row_with_states(states, tab_name){
             $.fn.dataTable.ext.search.pop();
             repo_data_table.draw();
             $.fn.dataTable.ext.search.push(
                function(settings, data, dataIndex) {
-                  return states.indexOf($(repo_data_table.row(dataIndex).node()).attr('data-state')) !== -1;
+                    // get the table row
+                    var row = $(repo_data_table.row(dataIndex).node());
+                    var row_state = row.attr('data-state');
+                    var row_dedicated_tab_name = row.attr('data-dedicated-tab');
+                    var tab_name_match = tab_name == row_dedicated_tab_name;
+                    var state_match = states.indexOf(row_state) !== -1;
+                    var matching_row = tab_name_match && state_match;
+                    return matching_row; // states.indexOf($(repo_data_table.row(dataIndex).node()).attr('data-state')) !== -1;
                }
             );
             repo_data_table.draw();
@@ -185,24 +205,48 @@
         $("#workinprogress").click(function(event) {
             event.preventDefault();
             $(this).addClass('btn-primary').removeClass('btn-default');
+            $('.dedicated-tabs-toggle').removeClass('btn-primary').addClass('btn-default');
             $('#needsreview').removeClass('btn-primary').addClass('btn-default');
             $('#reset').removeClass('btn-primary').addClass('btn-default');
-            show_row_with_states(["work in progress"]);
+            show_row_with_states(["work in progress"], 'None');
         });
 
         $("#needsreview").click(function(event) {
             event.preventDefault();
             $(this).addClass('btn-primary').removeClass('btn-default');
+            $('.dedicated-tabs-toggle').removeClass('btn-primary').addClass('btn-default');
             $('#reset').removeClass('btn-primary').addClass('btn-default');
             $('#workinprogress').removeClass('btn-primary').addClass('btn-default');
-            show_row_with_states(["needs review", "open"]);
+            show_row_with_states(["needs review", "open"], 'None');
         });
 
-        show_row_with_states(["needs review", "open"]);
+        {% for dedicated_tab_name in repos.dedicated_tabs %}
+            $("#dedicated-{{ dedicated_tab_name|replace(" ", "-") }}-needsreview").click(function(event) {
+                event.preventDefault();
+                $('.dedicated-tabs-toggle').removeClass('btn-primary').addClass('btn-default');
+                $(this).addClass('btn-primary').removeClass('btn-default');
+                $('#reset').removeClass('btn-primary').addClass('btn-default');
+                $('#workinprogress').removeClass('btn-primary').addClass('btn-default');
+                $('#needsreview').removeClass('btn-primary').addClass('btn-default');
+                show_row_with_states(["needs review", "open"], "{{ dedicated_tab_name }}");
+            });
+            $("#dedicated-{{ dedicated_tab_name|replace(" ", "-") }}-workinprogress").click(function(event) {
+                event.preventDefault();
+                $('.dedicated-tabs-toggle').removeClass('btn-primary').addClass('btn-default');
+                $(this).addClass('btn-primary').removeClass('btn-default');
+                $('#reset').removeClass('btn-primary').addClass('btn-default');
+                $('#workinprogress').removeClass('btn-primary').addClass('btn-default');
+                $('#needsreview').removeClass('btn-primary').addClass('btn-default');
+                show_row_with_states(["work in progress"], "{{ dedicated_tab_name }}");
+            });
+        {% endfor %}
+
+        show_row_with_states(["needs review", "open"], 'None');
 
         $("#reset").click(function(event) {
             event.preventDefault();
             $(this).addClass('btn-primary').removeClass('btn-default');
+            $('.dedicated-tabs-toggle').removeClass('btn-primary').addClass('btn-default');
             $('#needsreview').removeClass('btn-primary').addClass('btn-default');
             $('#workinprogress').removeClass('btn-primary').addClass('btn-default');
             $.fn.dataTable.ext.search.pop();
