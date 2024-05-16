@@ -370,7 +370,11 @@ def render(repos, output_directory, tox):
 
 def get_mp_title(mp):
     '''Format a sensible MP title from git branches and the description.'''
-    title = ''
+    header = '(no commit message)'
+
+    if mp.commit_message is not None and len(mp.commit_message) > 0:
+        header = mp.commit_message.split('\n')[0]
+    title = header + '\n\n'
     git_source = mp.source_git_path
     if git_source is not None:
         source = '<strong>'
@@ -540,7 +544,7 @@ def get_lp_repos(sources, output_directory=None, lp_credentials_store=None):
         except AttributeError:
             print_warning(
                 ["COULD NOT FIND REPO : {}".format(source),
-                 "SKIPPING {}"].format(source)
+                 "SKIPPING {}".format(source)]
             )
             continue
         repo.tox = data.get('tox', False)
@@ -728,7 +732,7 @@ def main(config_skeleton, config, output_directory,
     if config_skeleton:
         with open(resource_filename(
                 'review_gator', 'config-skeleton.yaml'), 'r') as config_file:
-            package_config = yaml.load(config_file)
+            package_config = yaml.safe_load(config_file)
 
             output = yaml.dump(package_config, Dumper=yaml.Dumper)
             print("# Sample config.")

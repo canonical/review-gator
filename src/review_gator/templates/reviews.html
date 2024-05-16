@@ -70,7 +70,7 @@
             {% for pull_request in repo.pull_requests %}
                 <tr data-state="{{ pull_request.state|lower }}" data-dedicated-tab="{{ repo.tab_name }}">
                     <td data-order="{{ repo.repo_name }}" title="{{ repo.repo_name }}"><a href="{{ repo.repo_url }}">{{ repo.repo_shortname }}</a></td>
-                    <td><a href="{{ pull_request.url }}">{{ pull_request.title }}</a></td>
+                    <td style="white-space:pre-wrap;"><a href="{{ pull_request.url }}">{{ pull_request.title }}</a></td>
                     <td>{{ pull_request.state }}</td>
                     <td>{{ pull_request.owner }}</td>
                     <td data-order="{{ pull_request.latest_activity }}">{{ pull_request.latest_activity_age }}</td>
