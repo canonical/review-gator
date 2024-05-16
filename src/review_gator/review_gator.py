@@ -470,7 +470,7 @@ def get_mps(repo, branch, output_directory=None):
                     tmpdir = tempfile.TemporaryDirectory()
                     cloned_repo = get_git_repo(src_git_repo, mp.source_git_path.replace('refs/heads/', ''), tmpdir)
                     cloned_head_date = cloned_repo.head.commit.committed_datetime
-                    if review_date < cloned_head_date and result.lower() in ['approve', 'approved']:
+                    if review_date < cloned_head_date:
                         result += '-STALE'
             except lazr.restfulclient.errors.NotFound as comment_not_found_exception:
                 print("Warning: MP ({}) could not find comment for vote from {} - "
