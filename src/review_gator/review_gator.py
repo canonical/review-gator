@@ -540,7 +540,7 @@ def get_lp_repos(sources, output_directory=None, lp_credentials_store=None):
         except AttributeError:
             print_warning(
                 ["COULD NOT FIND REPO : {}".format(source),
-                 "SKIPPING {}"].format(source)
+                 "SKIPPING {}".format(source)]
             )
             continue
         repo.tox = data.get('tox', False)
@@ -728,7 +728,7 @@ def main(config_skeleton, config, output_directory,
     if config_skeleton:
         with open(resource_filename(
                 'review_gator', 'config-skeleton.yaml'), 'r') as config_file:
-            package_config = yaml.load(config_file)
+            package_config = yaml.safe_load(config_file)
 
             output = yaml.dump(package_config, Dumper=yaml.Dumper)
             print("# Sample config.")
