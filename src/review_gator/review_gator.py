@@ -5,6 +5,7 @@ import os
 import shutil
 import socket
 import sys
+import tempfile
 import time
 
 import click
@@ -18,6 +19,7 @@ import pytz
 import yaml
 
 from babel.dates import format_datetime
+from git import Repo as git_repo
 from jinja2 import Environment, FileSystemLoader
 from joblib import Parallel, delayed
 
@@ -420,6 +422,14 @@ def get_candidate_mps(branch):
     return mps
 
 
+def get_git_repo(path, checkout, tmpdir):
+    cloned_repo = git_repo.clone_from(path, tmpdir.name, branch=checkout, multi_options=[
+        '--single-branch',
+        '--depth=1',
+    ])
+
+    return cloned_repo
+
 def get_mps(repo, branch, output_directory=None):
     '''Return all merge proposals for the given branch.'''
     mps = get_candidate_mps(branch)
@@ -452,6 +462,16 @@ def get_mps(repo, branch, output_directory=None):
                 if comment is not None:
                     result = comment.vote
                     review_date = comment.date_created
+
+                    src_git_repo = mp.source_git_repository_link.replace(
+                        'https://api.launchpad.net/devel/',
+                        'https://git.launchpad.net/')
+
+                    tmpdir = tempfile.TemporaryDirectory()
+                    cloned_repo = get_git_repo(src_git_repo, mp.source_git_path.replace('refs/heads/', ''), tmpdir)
+                    cloned_head_date = cloned_repo.head.commit.committed_datetime
+                    if review_date < cloned_head_date and result.lower() in ['approve', 'approved']:
+                        result += '-STALE'
             except lazr.restfulclient.errors.NotFound as comment_not_found_exception:
                 print("Warning: MP ({}) could not find comment for vote from {} - "
                       "comment was likely deleted.".format(mp.web_link, owner))
