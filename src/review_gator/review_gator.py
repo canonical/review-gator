@@ -370,7 +370,11 @@ def render(repos, output_directory, tox):
 
 def get_mp_title(mp):
     '''Format a sensible MP title from git branches and the description.'''
-    title = ''
+    header = '(no commit message)'
+
+    if mp.commit_message is not None and len(mp.commit_message) > 0:
+        header = mp.commit_message.split('\n')[0]
+    title = header + '\n\n'
     git_source = mp.source_git_path
     if git_source is not None:
         source = '<strong>'
