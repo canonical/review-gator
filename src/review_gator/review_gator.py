@@ -20,6 +20,7 @@ import yaml
 
 from babel.dates import format_datetime
 from git import Repo as git_repo
+from git.exc import GitCommandError
 from jinja2 import Environment, FileSystemLoader
 from joblib import Parallel, delayed
 
@@ -468,13 +469,18 @@ def get_mps(repo, branch, output_directory=None):
                         'lp:')
 
                     tmpdir = tempfile.TemporaryDirectory()
-                    cloned_repo = get_git_repo(src_git_repo, mp.source_git_path.replace('refs/heads/', ''), tmpdir)
+                    branch = mp.source_git_path.replace('refs/heads/', '')
+                    cloned_repo = get_git_repo(src_git_repo, branch, tmpdir)
                     cloned_head_date = cloned_repo.head.commit.committed_datetime
                     if review_date < cloned_head_date:
                         result += '-STALE'
             except lazr.restfulclient.errors.NotFound as comment_not_found_exception:
                 print("Warning: MP ({}) could not find comment for vote from {} - "
                       "comment was likely deleted.".format(mp.web_link, owner))
+            except GitCommandError:
+                print("There was a problem cloning branch {} from {}."
+                      "The branch is likely missing. Stale reviews will not be"
+                      "reported for this branch.".format(branch, src_git_repo))
             review = LaunchpadReview(vote, vote.web_link, owner, result,
                                      review_date)
 
