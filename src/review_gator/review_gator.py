@@ -430,7 +430,7 @@ def get_git_repo(path, checkout, tmpdir):
 
     return cloned_repo
 
-def get_mps(repo, branch, output_directory=None):
+def get_mps(repo, branch, output_directory=None, lp_username=None):
     '''Return all merge proposals for the given branch.'''
     mps = get_candidate_mps(branch)
     tox_mps = []
@@ -465,7 +465,7 @@ def get_mps(repo, branch, output_directory=None):
 
                     src_git_repo = mp.source_git_repository_link.replace(
                         'https://api.launchpad.net/devel/',
-                        'https://git.launchpad.net/')
+                        f'git+ssh://{lp_username}@git.launchpad.net/')
 
                     tmpdir = tempfile.TemporaryDirectory()
                     cloned_repo = get_git_repo(src_git_repo, mp.source_git_path.replace('refs/heads/', ''), tmpdir)
@@ -546,7 +546,7 @@ def get_branches(sources, lp_credentials_store=None):
     return repos
 
 
-def get_lp_repos(sources, output_directory=None, lp_credentials_store=None):
+def get_lp_repos(sources, output_directory=None, lp_credentials_store=None, lp_username=None):
     '''Return all repos, prs and reviews for the given lp-git source.'''
     # deferred import of launchpadagent until required
     from . import launchpadagent
@@ -571,7 +571,7 @@ def get_lp_repos(sources, output_directory=None, lp_credentials_store=None):
         repo.parallel_tox = data.get('parallel-tox', True)
         repo.environment = data.get('environment', None)
         repo.tab_name = data.get('tab-name', None)
-        get_mps(repo, b, output_directory)
+        get_mps(repo, b, output_directory, lp_username)
         if repo.pull_request_count > 0:
             repos.append(repo)
         print(repo)
@@ -606,12 +606,12 @@ def get_sources(source):
 
 
 def aggregate_reviews(sources, output_directory, github_password, github_token,
-                      github_username, tox, lp_credentials_store, tox_jobs):
+                      github_username, tox, lp_credentials_store, lp_username, tox_jobs):
     try:
         repos = []
         if 'lp-git' in sources:
             repos.extend(get_lp_repos(sources['lp-git'], output_directory,
-                                      lp_credentials_store))
+                                      lp_credentials_store, lp_username))
         if 'launchpad' in sources:
             # install time dependency on launchpad libs.
             from . import launchpadagent
@@ -741,12 +741,16 @@ def aggregate_reviews(sources, output_directory, github_password, github_token,
               required=False,
               help="An optional path to an already configured launchpad "
                    "credentials store.", default=None)
+@click.option('--lp-username', envvar='LAUNCHPAD_USERNAME', required=False,
+              help="Your launchpad username."
+                   "You can also set LAUNCHPAD_USERNAME as an environment "
+                   "variable.", default=None)
 @click.option('--tox-jobs', type=int, required=False, default=-1,
               help="Number of parallelized tox jobs. Default is -1, running "
                    "as many jobs as the processor allows. ")
 def main(config_skeleton, config, output_directory,
          github_username, github_password, github_token, poll,
-         tox, poll_interval, lp_credentials_store, tox_jobs):
+         tox, poll_interval, lp_credentials_store, lp_username, tox_jobs):
     """Start here."""
     global NOW
     if config_skeleton:
@@ -762,7 +766,7 @@ def main(config_skeleton, config, output_directory,
     sources = get_sources(config)
     aggregate_reviews(sources, output_directory, github_password,
                       github_token, github_username, tox,
-                      lp_credentials_store, tox_jobs)
+                      lp_credentials_store, lp_username, tox_jobs)
 
     if poll:
         # We do use time.sleep which is blocking so it is best to 'nice'
@@ -778,7 +782,7 @@ def main(config_skeleton, config, output_directory,
             NOW = localize_datetime(datetime.datetime.utcnow())
             aggregate_reviews(sources, output_directory, github_password,
                               github_token, github_username, tox,
-                              lp_credentials_store)
+                              lp_credentials_store, lp_username, tox_jobs)
 
 
 if __name__ == '__main__':
