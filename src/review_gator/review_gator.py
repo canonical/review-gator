@@ -465,7 +465,7 @@ def get_mps(repo, branch, output_directory=None):
 
                     src_git_repo = mp.source_git_repository_link.replace(
                         'https://api.launchpad.net/devel/',
-                        'https://git.launchpad.net/')
+                        'lp:')
 
                     tmpdir = tempfile.TemporaryDirectory()
                     cloned_repo = get_git_repo(src_git_repo, mp.source_git_path.replace('refs/heads/', ''), tmpdir)
