@@ -19,6 +19,13 @@ pip install -e .
 GITHUB_TOKEN=... review-gator --config branches.yaml
 ```
 
+### Prerequisites
+
+In order to function with Launchpad git repositories, the host must
+have a `.gitconfig` with Launchpad username and `lp:` substitution set up.
+See the following guide for instructions on setting up git for Launchpad:
+https://help.launchpad.net/Code/Git#Configuring_Git
+
 Basic Configuration
 -------------------
 
