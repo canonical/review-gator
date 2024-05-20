@@ -464,6 +464,7 @@ def get_mps(repo, branch, output_directory=None):
                     result = comment.vote
                     review_date = comment.date_created
 
+                if mp.source_git_repository_link is not None:
                     src_git_repo = mp.source_git_repository_link.replace(
                         'https://api.launchpad.net/devel/',
                         'lp:')
