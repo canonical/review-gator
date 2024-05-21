@@ -177,13 +177,15 @@ class LaunchpadPullRequest(PullRequest):
 
 class Review(object):
     '''A completed or requested review attached to a pull request.'''
-    def __init__(self, review_type, review, url, owner, state, date):
+    def __init__(self, review_type, review, url, owner, state, date, review_before_latest_commit=False):
         self.review_type = review_type
         self.review = review
         self.url = url
         self.owner = owner
         self.state = state
         self.date = date
+        # This represents whether the review was added before the latest commit in the source branch
+        self.review_before_latest_commit = review_before_latest_commit
 
     def __repr__(self):
         return u'Review[{}, {}, {}, {}, {}]'.format(self.review_type,
@@ -207,9 +209,9 @@ class GithubReview(Review):
 
 class LaunchpadReview(Review):
     '''A launchpad merge proposal review.'''
-    def __init__(self, handle, url, owner, state, date):
+    def __init__(self, handle, url, owner, state, date, review_before_latest_commit=False):
         super(LaunchpadReview, self).__init__(
-            'launchpad', handle, url, owner, state, date)
+            'launchpad', handle, url, owner, state, date, review_before_latest_commit=review_before_latest_commit)
 
 
 def date_to_age(date):
@@ -424,7 +426,7 @@ def get_candidate_mps(branch):
 
 
 def get_git_repo(path, checkout, tmpdir):
-    cloned_repo = git_repo.clone_from(path, tmpdir.name, branch=checkout, multi_options=[
+    cloned_repo = git_repo.clone_from(path, tmpdir, branch=checkout, multi_options=[
         '--single-branch',
         '--depth=1',
     ])
@@ -454,36 +456,41 @@ def get_mps(repo, branch, output_directory=None):
                             mp_comment.date_created > mp_latest_activity:
                 mp_latest_activity = mp_comment.date_created
 
+        cloned_head_date = None
+        try:
+            if pr.state == 'Needs review' and mp.source_git_repository_link is not None:
+                src_git_repo = mp.source_git_repository_link.replace(
+                    'https://api.launchpad.net/devel/',
+                    'lp:')
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    branch = mp.source_git_path.replace('refs/heads/', '')
+                    cloned_repo = get_git_repo(src_git_repo, branch, tmpdir)
+                    cloned_head_date = cloned_repo.head.commit.committed_datetime.astimezone(pytz.utc)
+        except GitCommandError:
+            print("Warning: There was a problem cloning branch {} from {}."
+                  "The branch is likely missing. Attempts to determine if a review "
+                  "was submitted before subsequent changes have been pushed to the "
+                  "source branch."
+                  .format(branch, src_git_repo))
+
         for vote in mp.votes:
             owner = vote.reviewer.display_name
             comment = vote.comment
             result = 'EMPTY'
             review_date = vote.date_created
+            review_before_latest_commit = False
             try:
                 if comment is not None:
                     result = comment.vote
                     review_date = comment.date_created
-
-                if mp.source_git_repository_link is not None:
-                    src_git_repo = mp.source_git_repository_link.replace(
-                        'https://api.launchpad.net/devel/',
-                        'lp:')
-
-                    tmpdir = tempfile.TemporaryDirectory()
-                    branch = mp.source_git_path.replace('refs/heads/', '')
-                    cloned_repo = get_git_repo(src_git_repo, branch, tmpdir)
-                    cloned_head_date = cloned_repo.head.commit.committed_datetime
-                    if review_date < cloned_head_date:
-                        result += '-STALE'
+                    if cloned_head_date and review_date.astimezone(pytz.utc) < cloned_head_date:
+                        review_before_latest_commit = True
             except lazr.restfulclient.errors.NotFound as comment_not_found_exception:
                 print("Warning: MP ({}) could not find comment for vote from {} - "
                       "comment was likely deleted.".format(mp.web_link, owner))
-            except GitCommandError:
-                print("There was a problem cloning branch {} from {}."
-                      "The branch is likely missing. Stale reviews will not be"
-                      "reported for this branch.".format(branch, src_git_repo))
+
             review = LaunchpadReview(vote, vote.web_link, owner, result,
-                                     review_date)
+                                     review_date, review_before_latest_commit)
 
             # MP Vote might be more recent than a comment
             if mp_latest_activity is None or review_date > mp_latest_activity:
