@@ -428,6 +428,7 @@ def get_candidate_mps(branch):
 def get_git_repo(path, checkout, tmpdir):
     cloned_repo = git_repo.clone_from(path, tmpdir, branch=checkout, multi_options=[
         '--single-branch',
+        '--no-checkout',
         '--depth=1',
     ])
 
