@@ -80,12 +80,15 @@
                             <tbody>
                                 {% for review in pull_request.reviews %}
                                 <tr {% if review.state == 'Approve' or review.state == 'APPROVED' %}class="success"{% endif %}
-                                    {% if review.state == 'Approve-STALE' or review.state == 'APPROVED-STALE' %}class="danger"{% endif %}
                                     {% if review.state == 'Disapprove' or review.state == 'Needs Fixing' or review.state == "CHANGES_REQUESTED" or review.state == "Resubmit" %}class="danger"{% endif %}
                                     {% if review.state == 'Needs Information' or review.state == 'COMMENTED' %}class="warning"{% endif %}>
                                     <td>{{ review.owner }}</td>
                                     <td>{{ review.state }}</td>
-                                    <td>{{ review.age }}</td>
+                                    <td>{{ review.age }}
+                                     {% if review.review_before_latest_commit %}
+                                        <i class="glyphicon glyphicon-info-sign" data-toggle="tooltip" data-placement="left" title="Review submitted before latest commit in source branch. This may be due to a rebase or due to a subsequent change being pushed. As such the review may be considered stale and need re-review."></i>
+                                     {% endif %}
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -255,6 +258,8 @@
         });
 
         configureAutorefresh();
+
+        $('[data-toggle="tooltip"]').tooltip()
     } );
 
 </script>
