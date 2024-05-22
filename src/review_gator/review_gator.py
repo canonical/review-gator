@@ -469,9 +469,9 @@ def get_mps(repo, branch, output_directory=None):
                     cloned_head_date = cloned_repo.head.commit.committed_datetime.astimezone(pytz.utc)
         except GitCommandError:
             print("Warning: There was a problem cloning branch {} from {}."
-                  "The branch is likely missing. Attempts to determine if a review "
-                  "was submitted before subsequent changes have been pushed to the "
-                  "source branch."
+                  "The branch is likely missing. As such we are unable to determine "
+                  "if a review was submitted before subsequent changes have been "
+                  "pushed to the source branch."
                   .format(branch, src_git_repo))
 
         for vote in mp.votes:
