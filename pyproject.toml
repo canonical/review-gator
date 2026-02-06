@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "review-gator"
+version = "0.3"
+description = "Helpful utility to render merge proposals as HTML"
+authors = [
+    {name = "fginther", email = "francis.ginther@canonical.com"}
+]
+readme = "README.md"
+requires-python = ">=3.6"
+license = {text = ""}
+dependencies = [
+    "babel",
+    "click",
+    "humanize",
+    "Jinja2",
+    "pytz",
+    "PyYAML",
+    "python-jose",
+    "PyGithub",
+    "lpshipit",
+    "joblib",
+    "GitPython",
+    "tox",
+    "launchpadlib",
+]
+
+[project.scripts]
+review-gator = "review_gator.review_gator:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
