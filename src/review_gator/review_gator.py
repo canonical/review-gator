@@ -25,7 +25,7 @@ from jinja2 import Environment, FileSystemLoader
 from joblib import Parallel, delayed
 
 from lpshipit import _format_git_branch_name
-from pkg_resources import resource_filename
+from importlib.resources import files
 
 from . import tox_runner
 from . import clicklib
@@ -771,8 +771,8 @@ def main(config_skeleton, config, output_directory,
     """Start here."""
     global NOW
     if config_skeleton:
-        with open(resource_filename(
-                'review_gator', 'config-skeleton.yaml'), 'r') as config_file:
+        config_file_path = files('review_gator').joinpath('config-skeleton.yaml')
+        with open(config_file_path, 'r') as config_file:
             package_config = yaml.safe_load(config_file)
 
             output = yaml.dump(package_config, Dumper=yaml.Dumper)
