@@ -22,3 +22,11 @@ lp-git:
             tox: true
             parallel-tox: false
             environment: 18.04
+# Define squad memberships for filtering
+# Each squad maps to a list of author usernames
+# this is a list of dictionaries which maps
+# squad -> members (list[str])
+squads: 
+  YOUR_SQUAD_NAME:
+    - user1
+    - user2
