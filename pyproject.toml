@@ -10,8 +10,9 @@ authors = [
     {name = "fginther", email = "francis.ginther@canonical.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.6"
-license = {text = ""}
+requires-python = ">=3.12"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
 dependencies = [
     "babel",
     "click",

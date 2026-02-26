@@ -13,9 +13,7 @@ Installation
 The following steps should leave you with a working script:
 
 ```
-virtualenv -p python3 --system-site-packages .venv
-source .venv/bin/activate
-pip install -e .
+uv tool install git+https://github.com/canonical/review-gator
 GITHUB_TOKEN=... review-gator --config branches.yaml
 ```
 
