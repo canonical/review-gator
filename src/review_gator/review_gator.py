@@ -7,6 +7,7 @@ import socket
 import sys
 import tempfile
 import time
+from collections import defaultdict
 
 import click
 import github
@@ -32,6 +33,21 @@ from . import clicklib
 from .reporters import REPORTER_CLASSES
 
 MAX_DESCRIPTION_LENGTH = 80
+
+
+def get_author_squad(author, squads) -> list[str]:
+    """
+    Determine which squad(s) an author belongs to.
+
+    :param author: The author username to check
+    :param squads: Dictionary mapping squad names to lists of members
+    :return: List of squad names the author belongs to
+    """
+    author_squads = []
+    for squad_name, squad_members in squads.items():
+        if squad_members and author in squad_members:
+            author_squads.append(squad_name)
+    return author_squads
 
 def print_warning(warning_msgs):
     """
@@ -315,18 +331,20 @@ def get_prs(gr, repo, review_count, dedicated_tab_name=None):
     return pull_requests
 
 
-def get_pr_data(pull_requests):
+def get_pr_data(pull_requests, squads):
     '''Render the list of provided pull_requests.'''
     pr_data = []
     for p in pull_requests:
+        author_squads = get_author_squad(p.owner, squads)
         pr_data.append(merge_two_dicts(p.__dict__, {
             'age': p.age,
             'id': p.mp_id,
-            'latest_activity_age': p.latest_activity_age}))
+            'latest_activity_age': p.latest_activity_age,
+            'squads': author_squads}))
     return pr_data
 
 
-def get_repo_data(repos):
+def get_repo_data(repos, squads):
     '''Render the list of repos, their prs and reviews into an html table.'''
     repo_data = {}
     for repo in repos:
@@ -335,7 +353,7 @@ def get_repo_data(repos):
             'repo_name': repo.name,
             'tox': repo.tox,
             'repo_shortname': repo.name.split('/')[-1],
-            'pull_requests': get_pr_data(repo.pull_requests),
+            'pull_requests': get_pr_data(repo.pull_requests, squads),
             'tab_name': repo.tab_name,
         }
     repo_data['dedicated_tabs'] = [repo.get('tab_name') for repo in repo_data.values() if repo.get('tab_name', None)]
@@ -348,9 +366,9 @@ def report_repo_data(data):
             reporter_cls().process_data(data)
 
 
-def render(repos, output_directory, tox):
+def render(repos, output_directory, tox, squads):
     '''Render the repositories into an html file.'''
-    data = get_repo_data(repos)
+    data = get_repo_data(repos, squads)
     report_repo_data(data)
     abs_templates_path = os.path.join(os.path.dirname(
             os.path.realpath(__file__)), "templates")
@@ -363,7 +381,12 @@ def render(repos, output_directory, tox):
     os.makedirs(output_directory, exist_ok=True)
     output_html_filepath = os.path.join(output_directory, 'reviews.html')
     with open(output_html_filepath, 'w') as out_file:
-        context = {'repos': data, 'generation_time': NOW, 'tox': tox}
+        context = {
+            'repos': data,
+            'generation_time': NOW,
+            'tox': tox,
+            'squads': sorted(squads.keys()) if squads else []
+        }
         out_file.write(tmpl.render(context))
         print("**** {} written ****".format(output_html_filepath))
         print("file://{}".format(output_html_filepath))
@@ -623,6 +646,9 @@ def get_sources(source):
 def aggregate_reviews(sources, output_directory, github_password, github_token,
                       github_username, tox, lp_credentials_store, tox_jobs):
     try:
+        # Extract squad definitions from config (optional)
+        squads = defaultdict(dict)
+
         repos = []
         if 'lp-git' in sources:
             repos.extend(get_lp_repos(sources['lp-git'], output_directory,
@@ -654,7 +680,7 @@ def aggregate_reviews(sources, output_directory, github_password, github_token,
             )
 
         # Render the report
-        render(repos, output_directory, tox)
+        render(repos, output_directory, tox, squads)
 
         if tox:
             tox_repos_to_run_in_parallel = [tox_repo for tox_repo in tox_repos if tox_repo.parallel_tox]
