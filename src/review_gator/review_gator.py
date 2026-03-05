@@ -434,7 +434,7 @@ def get_git_repo(path, checkout, tmpdir):
 
     return cloned_repo
 
-def get_mps(repo, branch, output_directory=None):
+def get_mps(repo, branch, max_age=None, output_directory=None):
     '''Return all merge proposals for the given branch.'''
     mps = get_candidate_mps(branch)
     tox_mps = []
@@ -445,7 +445,6 @@ def get_mps(repo, branch, output_directory=None):
         pr = LaunchpadPullRequest(mp, mp.web_link, title, owner,
                                   mp.queue_status,
                                   mp.date_created, 2)
-        repo.add(pr)
         mp_latest_activity = None
 
         if repo.tox and pr.state == 'Needs review':
@@ -457,6 +456,12 @@ def get_mps(repo, branch, output_directory=None):
                             mp_comment.date_created > mp_latest_activity:
                 mp_latest_activity = mp_comment.date_created
 
+        if max_age is not None and mp_latest_activity is not None:
+            cutoff_date = NOW - datetime.timedelta(days=max_age)
+            if mp_latest_activity < cutoff_date:
+                continue
+
+        repo.add(pr)
         cloned_head_date = None
         try:
             if pr.state == 'Needs review' and mp.source_git_repository_link is not None:
@@ -586,7 +591,8 @@ def get_lp_repos(sources, output_directory=None, lp_credentials_store=None):
         repo.parallel_tox = data.get('parallel-tox', True)
         repo.environment = data.get('environment', None)
         repo.tab_name = data.get('tab-name', None)
-        get_mps(repo, b, output_directory)
+        max_age = data.get('max-age', None)
+        get_mps(repo, b, max_age, output_directory)
         if repo.pull_request_count > 0:
             repos.append(repo)
         print(repo)
