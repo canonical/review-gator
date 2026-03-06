@@ -50,6 +50,16 @@
             </div>
         {% endif %}
 
+        {% if squads %}
+            <h6 class="dedicated-tabs-header">Squads:</h6>
+            <div class="btn-group btn-group-xs repo-squad-toggle" role="group" >
+                    <a href="#" id="squad-nosquad" class="btn btn-default squad-toggle">No squad</a>
+                    {% for squad_name in squads %}
+                        <a href="#" id="squad-{{ squad_name|replace(" ", "-") }}" class="btn btn-default squad-toggle">{{ squad_name }}</a>
+                    {% endfor %}
+            </div>
+        {% endif %}
+
         <table class="repo table table-striped table-bordered table-hover">
         <thead>
             <tr>
@@ -68,7 +78,7 @@
         <tbody>
         {% for repo_name, repo in repos.items() %}
             {% for pull_request in repo.pull_requests %}
-                <tr data-state="{{ pull_request.state|lower }}" data-dedicated-tab="{{ repo.tab_name }}">
+                <tr data-state="{{ pull_request.state|lower }}" data-dedicated-tab="{{ repo.tab_name }}" data-squads="{{ pull_request.squads|join(',') }}">
                     <td data-order="{{ repo.repo_name }}" title="{{ repo.repo_name }}"><a href="{{ repo.repo_url }}">{{ repo.repo_shortname }}</a></td>
                     <td style="white-space:pre-wrap;"><a href="{{ pull_request.url }}">{{ pull_request.title }}</a></td>
                     <td>{{ pull_request.state }}</td>
@@ -189,30 +199,56 @@
              paging: false,
              order: [[ 4, "desc" ]]
         });
-        function show_row_with_states(states, tab_name){
-            $.fn.dataTable.ext.search.pop();
-            repo_data_table.draw();
-            $.fn.dataTable.ext.search.push(
-               function(settings, data, dataIndex) {
-                    // get the table row
-                    var row = $(repo_data_table.row(dataIndex).node());
-                    var row_state = row.attr('data-state');
-                    var row_dedicated_tab_name = row.attr('data-dedicated-tab');
-                    var tab_name_match = tab_name == row_dedicated_tab_name;
-                    var state_match = states.indexOf(row_state) !== -1;
-                    var matching_row = tab_name_match && state_match;
-                    return matching_row; // states.indexOf($(repo_data_table.row(dataIndex).node()).attr('data-state')) !== -1;
-               }
-            );
+        
+        // Track active filters
+        var activeFilters = {
+            states: ["needs review", "open"],
+            tab_name: 'None',
+            squad: null
+        };
+
+        // Combined filter function
+        $.fn.dataTable.ext.search.push(
+            function(settings, data, dataIndex) {
+                var row = $(repo_data_table.row(dataIndex).node());
+                
+                // Check state filter
+                var row_state = row.attr('data-state');
+                var state_match = activeFilters.states === null || activeFilters.states.indexOf(row_state) !== -1;
+                
+                // Check dedicated tab filter
+                var row_dedicated_tab_name = row.attr('data-dedicated-tab');
+                var tab_name_match = activeFilters.tab_name === null || activeFilters.tab_name == row_dedicated_tab_name;
+                
+                // Check squad filter
+                var squad_match = true;
+                if (activeFilters.squad !== null) {
+                    var row_squads = row.attr('data-squads');
+                    if (row_squads) {
+                        var squads_list = row_squads.split(',');
+                        squad_match = squads_list.indexOf(activeFilters.squad) !== -1;
+                    } else {
+                        squad_match = false;
+                    }
+                }
+                
+                return state_match && tab_name_match && squad_match;
+            }
+        );
+
+        function applyFilters() {
             repo_data_table.draw();
         }
+
         $("#workinprogress").click(function(event) {
             event.preventDefault();
             $(this).addClass('btn-primary').removeClass('btn-default');
             $('.dedicated-tabs-toggle').removeClass('btn-primary').addClass('btn-default');
             $('#needsreview').removeClass('btn-primary').addClass('btn-default');
             $('#reset').removeClass('btn-primary').addClass('btn-default');
-            show_row_with_states(["work in progress"], 'None');
+            activeFilters.states = ["work in progress"];
+            activeFilters.tab_name = 'None';
+            applyFilters();
         });
 
         $("#needsreview").click(function(event) {
@@ -221,7 +257,9 @@
             $('.dedicated-tabs-toggle').removeClass('btn-primary').addClass('btn-default');
             $('#reset').removeClass('btn-primary').addClass('btn-default');
             $('#workinprogress').removeClass('btn-primary').addClass('btn-default');
-            show_row_with_states(["needs review", "open"], 'None');
+            activeFilters.states = ["needs review", "open"];
+            activeFilters.tab_name = 'None';
+            applyFilters();
         });
 
         {% for dedicated_tab_name in repos.dedicated_tabs %}
@@ -232,7 +270,9 @@
                 $('#reset').removeClass('btn-primary').addClass('btn-default');
                 $('#workinprogress').removeClass('btn-primary').addClass('btn-default');
                 $('#needsreview').removeClass('btn-primary').addClass('btn-default');
-                show_row_with_states(["needs review", "open"], "{{ dedicated_tab_name }}");
+                activeFilters.states = ["needs review", "open"];
+                activeFilters.tab_name = "{{ dedicated_tab_name }}";
+                applyFilters();
             });
             $("#dedicated-{{ dedicated_tab_name|replace(" ", "-") }}-workinprogress").click(function(event) {
                 event.preventDefault();
@@ -241,20 +281,44 @@
                 $('#reset').removeClass('btn-primary').addClass('btn-default');
                 $('#workinprogress').removeClass('btn-primary').addClass('btn-default');
                 $('#needsreview').removeClass('btn-primary').addClass('btn-default');
-                show_row_with_states(["work in progress"], "{{ dedicated_tab_name }}");
+                activeFilters.states = ["work in progress"];
+                activeFilters.tab_name = "{{ dedicated_tab_name }}";
+                applyFilters();
             });
         {% endfor %}
 
-        show_row_with_states(["needs review", "open"], 'None');
+        $("#squad-nosquad").click(function(event) {
+            event.preventDefault();
+            $('.squad-toggle').removeClass('btn-primary').addClass('btn-default');
+            $(this).addClass('btn-primary').removeClass('btn-default');
+            activeFilters.squad = null;
+            applyFilters();
+        });
+
+        {% for squad_name in squads %}
+            $("#squad-{{ squad_name|replace(" ", "-") }}").click(function(event) {
+                event.preventDefault();
+                $('.squad-toggle').removeClass('btn-primary').addClass('btn-default');
+                $(this).addClass('btn-primary').removeClass('btn-default');
+                activeFilters.squad = "{{ squad_name }}";
+                applyFilters();
+            });
+        {% endfor %}
+
+        // Apply initial filter
+        applyFilters();
 
         $("#reset").click(function(event) {
             event.preventDefault();
             $(this).addClass('btn-primary').removeClass('btn-default');
             $('.dedicated-tabs-toggle').removeClass('btn-primary').addClass('btn-default');
+            $('.squad-toggle').removeClass('btn-primary').addClass('btn-default');
             $('#needsreview').removeClass('btn-primary').addClass('btn-default');
             $('#workinprogress').removeClass('btn-primary').addClass('btn-default');
-            $.fn.dataTable.ext.search.pop();
-            repo_data_table.draw();
+            activeFilters.states = null;
+            activeFilters.tab_name = null;
+            activeFilters.squad = null;
+            applyFilters();
         });
 
         configureAutorefresh();
