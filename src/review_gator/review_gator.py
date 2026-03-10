@@ -653,7 +653,7 @@ def aggregate_reviews(sources, output_directory, github_password, github_token,
                       github_username, tox, lp_credentials_store, tox_jobs):
     try:
         # Extract squad definitions from config (optional)
-        squads = defaultdict(dict)
+        squads = sources.get('squads', {})
 
         repos = []
         if 'lp-git' in sources:
