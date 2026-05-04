@@ -11,8 +11,7 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.12"
-license = "GPL-3.0-only"
-license-files = ["LICENSE"]
+license = { file = "LICENSE" }
 dependencies = [
     "babel",
     "click",
